@@ -1,17 +1,24 @@
 use crate::epub::Error;
 use std::fs::File;
-use std::io::Read;
+use std::io::{Read, Seek};
 use std::path::Path;
 use zip::ZipArchive;
 
-pub struct ZipHandler {
-    archive: ZipArchive<File>,
+pub struct ZipHandler<R: Read + Seek> {
+    archive: ZipArchive<R>,
 }
 
-impl ZipHandler {
+impl ZipHandler<File> {
     pub fn new(path: &Path) -> Result<Self, Error> {
         let file = File::open(path)?;
         let archive = ZipArchive::new(file)?;
+        Ok(ZipHandler { archive })
+    }
+}
+
+impl<R: Read + Seek> ZipHandler<R> {
+    pub fn new_from_reader(reader: R) -> Result<Self, Error> {
+        let archive = ZipArchive::new(reader)?;
         Ok(ZipHandler { archive })
     }
 

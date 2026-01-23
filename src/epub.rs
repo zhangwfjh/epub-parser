@@ -6,6 +6,7 @@ use crate::toc::TocEntry;
 use crate::zip_handler::ZipHandler;
 use quick_xml::events::Event;
 use std::collections::HashMap;
+use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
 #[derive(Debug)]
@@ -49,7 +50,18 @@ impl From<quick_xml::Error> for Error {
 impl Epub {
     pub fn parse(path: &Path) -> Result<Self, Error> {
         let mut zip_handler = ZipHandler::new(path)?;
+        Self::parse_from_handler(&mut zip_handler)
+    }
 
+    pub fn parse_from_buffer(buffer: &[u8]) -> Result<Self, Error> {
+        let cursor = Cursor::new(buffer.to_vec());
+        let mut zip_handler = ZipHandler::new_from_reader(cursor)?;
+        Self::parse_from_handler(&mut zip_handler)
+    }
+
+    fn parse_from_handler<R: std::io::Read + std::io::Seek>(
+        zip_handler: &mut ZipHandler<R>,
+    ) -> Result<Self, Error> {
         let opf_path = zip_handler.get_opf_path()?;
         let opf_content = zip_handler.read_file(&opf_path)?;
 
@@ -343,7 +355,8 @@ impl Epub {
                     if name == "content" {
                         if let Some(src) = e.try_get_attribute("src")? {
                             if let Some(entry) = stack.last_mut() {
-                                entry.href = src.decode_and_unescape_value(reader.decoder())?.to_string();
+                                entry.href =
+                                    src.decode_and_unescape_value(reader.decoder())?.to_string();
                             }
                         }
                     }

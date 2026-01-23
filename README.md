@@ -24,7 +24,12 @@ A Rust library for extracting metadata, table of contents, text, cover, and imag
 use epub_parser::Epub;
 use std::path::Path;
 
+// Parse from file path
 let epub = Epub::parse(Path::new("book.epub"))?;
+
+// Or parse from in-memory buffer
+let buffer = std::fs::read("book.epub")?;
+let epub_from_buffer = Epub::parse_from_buffer(&buffer)?;
 
 // Access metadata
 println!("Title: {:?}", epub.metadata.title);
@@ -42,7 +47,7 @@ if let Some(ref href) = epub.cover.href {
 
 // Access images
 for image in &epub.images {
-    println!("Image: {} ({} bytes)", image.href, 
+    println!("Image: {} ({} bytes)", image.href,
         image.content.as_ref().map(|c| c.len()).unwrap_or(0));
     if let Some(ref content) = image.content {
         std::fs::write(&format!("images/{}", image.href), content)?;
