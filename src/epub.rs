@@ -182,25 +182,15 @@ impl Epub {
                 Ok(Event::Empty(ref e)) => {
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
                     if name.contains("meta") {
-                        let mut is_cover = false;
                         for attr_result in e.attributes() {
                             if let Ok(attr) = attr_result {
                                 let attr_name =
                                     String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                                if attr_name.contains("name") {
-                                    let value = attr
-                                        .decode_and_unescape_value(reader.decoder())?
-                                        .to_string();
-                                    if value == "cover" {
-                                        is_cover = true;
-                                    }
-                                } else if attr_name.contains("content") {
-                                    if is_cover {
-                                        if let Some(val) =
-                                            attr.decode_and_unescape_value(reader.decoder()).ok()
-                                        {
-                                            cover_id = Some(val.to_string());
-                                        }
+                                if attr_name.contains("content") {
+                                    if let Some(val) =
+                                        attr.decode_and_unescape_value(reader.decoder()).ok()
+                                    {
+                                        cover_id = Some(val.to_string());
                                     }
                                 }
                             }
