@@ -1,30 +1,94 @@
-use crate::content::Page;
-use crate::image::Image;
-use crate::metadata::Metadata;
-use crate::toc::TocEntry;
-use crate::zip_handler::ZipHandler;
+use crate::types::{Image, Metadata, Page, TocEntry};
+use crate::utils::ZipHandler;
 use ordered_hash_map::OrderedHashMap;
 use quick_xml::events::Event;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
+/// A parsed EPUB e-book representation.
+///
+/// This struct contains all the extracted data from an EPUB file including:
+/// - Metadata (title, author, publisher, etc.)
+/// - Table of contents (hierarchical navigation)
+/// - Text content (pages in reading order)
+/// - Images (including cover image)
+///
+/// # Example
+///
+/// ```
+/// use epub_parser::Epub;
+/// use std::path::Path;
+///
+/// let epub = Epub::parse(Path::new("book.epub"))?;
+///
+/// // Access metadata
+/// if let Some(title) = &epub.metadata.title {
+///     println!("Title: {}", title);
+/// }
+///
+/// // Access all pages
+/// for page in &epub.pages {
+///     println!("Page {}: {} chars", page.index, page.content.len());
+/// }
+///
+/// // Access images
+/// for image in &epub.images {
+///     println!("Image: {} ({})", image.href, image.media_type);
+/// }
+/// ```
 #[derive(Debug)]
 pub struct Epub {
+    /// The Dublin Core metadata extracted from the EPUB.
     pub metadata: Metadata,
+    /// The hierarchical table of contents from the NCX file.
     pub toc: Vec<TocEntry>,
+    /// The text content of each page in reading order.
     pub pages: Vec<Page>,
+    /// All images found in the EPUB (including cover).
     pub images: Vec<Image>,
 }
 
+/// Errors that can occur while parsing an EPUB file.
 #[derive(Debug)]
 pub enum Error {
+    /// The EPUB file is invalid or corrupted.
     InvalidEpub(String),
+    /// An I/O error occurred while reading the file.
     IoError(std::io::Error),
+    /// An error occurred while reading the ZIP archive.
     ZipError(zip::result::ZipError),
+    /// An error occurred while parsing XML.
     XmlError(String),
+    /// The META-INF/container.xml file is missing.
     MissingContainer,
+    /// The OPF package file is missing or not found.
     MissingOpf,
+    /// The NCX table of contents file is missing.
     MissingNcx,
+}
+
+impl std::fmt::Display for Error {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Error::InvalidEpub(msg) => write!(f, "Invalid EPUB: {}", msg),
+            Error::IoError(e) => write!(f, "I/O error: {}", e),
+            Error::ZipError(e) => write!(f, "ZIP error: {}", e),
+            Error::XmlError(e) => write!(f, "XML error: {}", e),
+            Error::MissingContainer => write!(f, "Missing container.xml"),
+            Error::MissingOpf => write!(f, "Missing OPF file"),
+            Error::MissingNcx => write!(f, "Missing NCX file"),
+        }
+    }
+}
+
+impl std::error::Error for Error {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            Error::IoError(e) => Some(e),
+            Error::ZipError(e) => Some(e),
+            _ => None,
+        }
+    }
 }
 
 impl From<std::io::Error> for Error {
@@ -46,11 +110,61 @@ impl From<quick_xml::Error> for Error {
 }
 
 impl Epub {
+    /// Parse an EPUB file from a file path.
+    ///
+    /// # Arguments
+    ///
+    /// * `path` - The path to the EPUB file.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Epub)` on success, or an `Error` if parsing fails.
+    ///
+    /// # Errors
+    ///
+    /// This function will return an error if:
+    /// - The file does not exist
+    /// - The file is not a valid ZIP archive
+    /// - The EPUB structure is invalid
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use epub_parser::Epub;
+    /// use std::path::Path;
+    ///
+    /// let epub = Epub::parse(Path::new("book.epub"))?;
+    /// println!("Parsed: {}", epub.metadata.title.unwrap_or_default());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn parse(path: &Path) -> Result<Self, Error> {
         let mut zip_handler = ZipHandler::new(path)?;
         Self::parse_from_handler(&mut zip_handler)
     }
 
+    /// Parse an EPUB file from a byte buffer.
+    ///
+    /// This is useful when you have the EPUB data in memory, for example
+    /// when downloading from a network or reading from a database.
+    ///
+    /// # Arguments
+    ///
+    /// * `buffer` - The raw bytes of the EPUB file.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Epub)` on success, or an `Error` if parsing fails.
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use epub_parser::Epub;
+    ///
+    /// let bytes = std::fs::read("book.epub")?;
+    /// let epub = Epub::parse_from_buffer(&bytes)?;
+    /// println!("Parsed: {}", epub.metadata.title.unwrap_or_default());
+    /// # Ok::<(), Box<dyn std::error::Error>>(())
+    /// ```
     pub fn parse_from_buffer(buffer: &[u8]) -> Result<Self, Error> {
         let cursor = Cursor::new(buffer.to_vec());
         let mut zip_handler = ZipHandler::new_from_reader(cursor)?;
