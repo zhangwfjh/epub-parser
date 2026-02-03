@@ -169,9 +169,8 @@ pub struct Image {
 
     /// The binary content of the image.
     ///
-    /// This is `Some(Vec<u8>)` if the image was successfully read,
-    /// or `None` if the image file could not be found or read.
-    pub content: Option<Vec<u8>>,
+    /// This is the raw bytes of the image file.
+    pub content: Vec<u8>,
 }
 
 /// An entry in the EPUB table of contents.

@@ -202,23 +202,25 @@ impl Epub {
 
         let mut images = Vec::new();
         for (id, item) in &manifest {
-            if item._media_type.starts_with("image/") {
+            if item._media_type.to_lowercase().starts_with("image/") {
                 let image_path = Self::resolve_path(&opf_path, &item.href);
-                match zip_handler.read_file_as_bytes(&image_path) {
-                    Ok(bytes) => {
+                if let Ok(bytes) = zip_handler.read_file_as_bytes(&image_path) {
+                    if id.to_lowercase().contains("cover") {
+                        images.insert(
+                            0,
+                            Image {
+                                id: id.clone(),
+                                href: item.href.clone(),
+                                media_type: item._media_type.clone(),
+                                content: bytes,
+                            },
+                        );
+                    } else {
                         images.push(Image {
                             id: id.clone(),
                             href: item.href.clone(),
                             media_type: item._media_type.clone(),
-                            content: Some(bytes),
-                        });
-                    }
-                    Err(_) => {
-                        images.push(Image {
-                            id: id.clone(),
-                            href: item.href.clone(),
-                            media_type: item._media_type.clone(),
-                            content: None,
+                            content: bytes,
                         });
                     }
                 }

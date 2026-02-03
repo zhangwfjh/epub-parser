@@ -37,11 +37,8 @@ println!("Author: {:?}", epub.metadata.author);
 
 // Access images, the first is cover
 for image in &epub.images {
-    println!("Image: {} ({} bytes)", image.href,
-        image.content.as_ref().map(|c| c.len()).unwrap_or(0));
-    if let Some(ref content) = image.content {
-        std::fs::write(&format!("images/{}", image.href), content)?;
-    }
+    println!("Image: {} ({} bytes)", image.href, image.content.len());
+    std::fs::write(&format!("{}", image.href), image.content.clone())?;
 }
 
 // Access table of contents
