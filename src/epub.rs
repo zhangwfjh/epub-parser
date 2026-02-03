@@ -1,11 +1,10 @@
 use crate::content::Page;
-use crate::cover::Cover;
 use crate::image::Image;
 use crate::metadata::Metadata;
 use crate::toc::TocEntry;
 use crate::zip_handler::ZipHandler;
+use ordered_hash_map::OrderedHashMap;
 use quick_xml::events::Event;
-use std::collections::HashMap;
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 
@@ -14,7 +13,6 @@ pub struct Epub {
     pub metadata: Metadata,
     pub toc: Vec<TocEntry>,
     pub pages: Vec<Page>,
-    pub cover: Cover,
     pub images: Vec<Image>,
 }
 
@@ -65,7 +63,7 @@ impl Epub {
         let opf_path = zip_handler.get_opf_path()?;
         let opf_content = zip_handler.read_file(&opf_path)?;
 
-        let (metadata, manifest, spine, ncx_path, cover_id) = Self::parse_opf(&opf_content)?;
+        let (metadata, manifest, spine, ncx_path) = Self::parse_opf(&opf_content)?;
 
         let toc = if let Some(ncx_ref) = ncx_path {
             let ncx_path_full = Self::resolve_path(&opf_path, &ncx_ref);
@@ -85,20 +83,6 @@ impl Epub {
                     index: pages.len(),
                     content: text,
                 });
-            }
-        }
-
-        let mut cover = Cover::default();
-        if let Some(cover_id) = cover_id {
-            if let Some(cover_item) = manifest.get(&cover_id) {
-                let cover_path = Self::resolve_path(&opf_path, &cover_item.href);
-                match zip_handler.read_file_as_bytes(&cover_path) {
-                    Ok(bytes) => {
-                        cover.href = Some(cover_item.href.clone());
-                        cover.content = Some(bytes);
-                    }
-                    Err(_) => {}
-                }
             }
         }
 
@@ -131,7 +115,6 @@ impl Epub {
             metadata,
             toc,
             pages,
-            cover,
             images,
         })
     }
@@ -141,19 +124,17 @@ impl Epub {
     ) -> Result<
         (
             Metadata,
-            HashMap<String, ManifestItem>,
+            OrderedHashMap<String, ManifestItem>,
             Vec<String>,
-            Option<String>,
             Option<String>,
         ),
         Error,
     > {
         let mut reader = quick_xml::Reader::from_str(content);
         let mut metadata = Metadata::new();
-        let mut manifest: HashMap<String, ManifestItem> = HashMap::new();
+        let mut manifest: OrderedHashMap<String, ManifestItem> = OrderedHashMap::new();
         let mut spine: Vec<String> = Vec::new();
         let mut ncx_path: Option<String> = None;
-        let mut cover_id: Option<String> = None;
 
         let mut current_text_tag: Option<String> = None;
 
@@ -181,21 +162,7 @@ impl Epub {
                 }
                 Ok(Event::Empty(ref e)) => {
                     let name = String::from_utf8_lossy(e.name().as_ref()).to_string();
-                    if name.contains("meta") {
-                        for attr_result in e.attributes() {
-                            if let Ok(attr) = attr_result {
-                                let attr_name =
-                                    String::from_utf8_lossy(attr.key.as_ref()).to_string();
-                                if attr_name.contains("content") {
-                                    if let Some(val) =
-                                        attr.decode_and_unescape_value(reader.decoder()).ok()
-                                    {
-                                        cover_id = Some(val.to_string());
-                                    }
-                                }
-                            }
-                        }
-                    } else if name.contains("item") && !name.contains("itemref") {
+                    if name.contains("item") && !name.contains("itemref") {
                         let mut id = String::new();
                         let mut href = String::new();
                         let mut media_type = String::new();
@@ -288,7 +255,7 @@ impl Epub {
             buf.clear();
         }
 
-        Ok((metadata, manifest, spine, ncx_path, cover_id))
+        Ok((metadata, manifest, spine, ncx_path))
     }
 
     fn parse_ncx(content: &str) -> Result<Vec<TocEntry>, Error> {

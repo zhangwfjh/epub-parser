@@ -1,6 +1,6 @@
 [package]
 name = "epub-parser"
-version = "0.2.1"
+version = "0.3.0"
 edition = "2024"
 authors = ["zhangwfjh <zhangwfjh@gmail.com>"]
 description = "A Rust library for extracting metadata, table of contents, text, cover, and images from EPUB files."
@@ -12,3 +12,4 @@ categories = ["parser-implementations", "text-processing"]
 [dependencies]
 zip = "2.1"
 quick-xml = "0.36"
+ordered_hash_map = "0.5.0"

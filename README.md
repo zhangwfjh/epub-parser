@@ -35,17 +35,7 @@ let epub_from_buffer = Epub::parse_from_buffer(&buffer)?;
 println!("Title: {:?}", epub.metadata.title);
 println!("Author: {:?}", epub.metadata.author);
 
-// Access cover image
-if let Some(ref href) = epub.cover.href {
-    println!("Cover: {}", href);
-    if let Some(ref content) = epub.cover.content {
-        println!("Cover size: {} bytes", content.len());
-        // Save cover image
-        std::fs::write("cover.jpg", content)?;
-    }
-}
-
-// Access images
+// Access images, the first is cover
 for image in &epub.images {
     println!("Image: {} ({} bytes)", image.href,
         image.content.as_ref().map(|c| c.len()).unwrap_or(0));
