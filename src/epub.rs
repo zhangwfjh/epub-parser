@@ -191,12 +191,22 @@ impl Epub {
         for itemref in spine {
             if let Some(manifest_item) = manifest.get(&itemref) {
                 let content_path = Self::resolve_path(&opf_path, &manifest_item.href);
-                let content = zip_handler.read_file(&content_path)?;
-                let text = Self::extract_text_from_html(&content)?;
-                pages.push(Page {
-                    index: pages.len(),
-                    content: text,
-                });
+                match zip_handler.read_file(&content_path) {
+                    Ok(content) => {
+                        if let Ok(text) = Self::extract_text_from_html(&content) {
+                            pages.push(Page {
+                                index: pages.len(),
+                                content: text,
+                            });
+                        }
+                    }
+                    Err(e) => {
+                        eprintln!(
+                            "Warning: Could not read content file '{}': {}",
+                            content_path, e
+                        );
+                    }
+                }
             }
         }
 
@@ -477,14 +487,22 @@ impl Epub {
                 }
                 Ok(Event::Text(e)) => {
                     if !in_skip_tag {
-                        let t = e.unescape()?.into_owned();
-                        let trimmed: String = t.chars().filter(|c| !c.is_control()).collect();
-                        text.push_str(&trimmed);
-                        text.push(' ');
+                        if let Ok(unescaped) = e.unescape() {
+                            let t = unescaped.into_owned();
+                            let trimmed: String = t.chars().filter(|c| !c.is_control()).collect();
+                            text.push_str(&trimmed);
+                            text.push(' ');
+                        }
                     }
                 }
                 Ok(Event::Eof) => break,
-                Err(e) => return Err(Error::XmlError(e.to_string())),
+                Err(e) => {
+                    eprintln!(
+                        "Warning: XML parse error in HTML content, continuing: {}",
+                        e
+                    );
+                    break;
+                }
                 _ => {}
             }
             buf.clear();
