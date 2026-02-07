@@ -7,5 +7,5 @@
 pub mod xml;
 pub mod zip;
 
-pub use xml::{preprocess_html_entities, XmlParser};
+pub use xml::{XmlParser, preprocess_html_entities};
 pub use zip::ZipHandler;

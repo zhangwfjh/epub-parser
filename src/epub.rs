@@ -1,5 +1,5 @@
 use crate::types::{Image, Metadata, Page, TocEntry};
-use crate::utils::{preprocess_html_entities, ZipHandler};
+use crate::utils::{ZipHandler, preprocess_html_entities};
 use ordered_hash_map::OrderedHashMap;
 use quick_xml::events::Event;
 use std::io::Cursor;
@@ -356,7 +356,14 @@ impl Epub {
                 }
                 Ok(Event::Text(e)) => {
                     if let Some(tag) = &current_text_tag {
-                        let text = e.unescape()?.into_owned().trim().to_string();
+                        let text = e
+                            .unescape()
+                            .unwrap_or_else(|_| {
+                                std::str::from_utf8(e.as_ref()).unwrap_or_default().into()
+                            })
+                            .into_owned()
+                            .trim()
+                            .to_string();
                         if !text.is_empty() {
                             match tag.as_str() {
                                 "title" => metadata.title = Some(text),
@@ -431,7 +438,12 @@ impl Epub {
                 Ok(Event::Text(e)) => {
                     if in_text {
                         if let Some(entry) = stack.last_mut() {
-                            entry.label = e.unescape()?.into_owned();
+                            entry.label = e
+                                .unescape()
+                                .unwrap_or_else(|_| {
+                                    std::str::from_utf8(e.as_ref()).unwrap_or_default().into()
+                                })
+                                .into_owned();
                         }
                     }
                 }
@@ -487,12 +499,13 @@ impl Epub {
                 }
                 Ok(Event::Text(e)) => {
                     if !in_skip_tag {
-                        if let Ok(unescaped) = e.unescape() {
-                            let t = unescaped.into_owned();
-                            let trimmed: String = t.chars().filter(|c| !c.is_control()).collect();
-                            text.push_str(&trimmed);
-                            text.push(' ');
-                        }
+                        let unescaped = e.unescape().unwrap_or_else(|_| {
+                            std::str::from_utf8(e.as_ref()).unwrap_or_default().into()
+                        });
+                        let t = unescaped.into_owned();
+                        let trimmed: String = t.chars().filter(|c| !c.is_control()).collect();
+                        text.push_str(&trimmed);
+                        text.push(' ');
                     }
                 }
                 Ok(Event::Eof) => break,
