@@ -1,5 +1,5 @@
 use crate::types::{Image, Metadata, Page, TocEntry};
-use crate::utils::ZipHandler;
+use crate::utils::{preprocess_html_entities, ZipHandler};
 use ordered_hash_map::OrderedHashMap;
 use quick_xml::events::Event;
 use std::io::Cursor;
@@ -246,7 +246,8 @@ impl Epub {
         ),
         Error,
     > {
-        let mut reader = quick_xml::Reader::from_str(content);
+        let content = preprocess_html_entities(content);
+        let mut reader = quick_xml::Reader::from_str(&content);
         let mut metadata = Metadata::new();
         let mut manifest: OrderedHashMap<String, ManifestItem> = OrderedHashMap::new();
         let mut spine: Vec<String> = Vec::new();
@@ -375,7 +376,8 @@ impl Epub {
     }
 
     fn parse_ncx(content: &str) -> Result<Vec<TocEntry>, Error> {
-        let mut reader = quick_xml::Reader::from_str(content);
+        let content = preprocess_html_entities(content);
+        let mut reader = quick_xml::Reader::from_str(&content);
         let mut toc = Vec::new();
         let mut stack: Vec<TocEntry> = Vec::new();
 
@@ -445,7 +447,8 @@ impl Epub {
     }
 
     fn extract_text_from_html(content: &str) -> Result<String, Error> {
-        let mut reader = quick_xml::Reader::from_str(content);
+        let content = preprocess_html_entities(content);
+        let mut reader = quick_xml::Reader::from_str(&content);
         let mut text = String::new();
         let skip_tags: Vec<Vec<u8>> = vec![b"script".to_vec(), b"style".to_vec(), b"head".to_vec()];
         let mut in_skip_tag = false;

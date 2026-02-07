@@ -5,6 +5,24 @@
 
 use quick_xml::events::Event;
 
+/// Pre-process XML content to handle common HTML entities.
+///
+/// EPUB files often contain HTML entities like `&nbsp;` that are not
+/// recognized by strict XML parsers. This function replaces them with
+/// numeric character references that XML parsers can understand.
+pub fn preprocess_html_entities(content: &str) -> String {
+    content
+        .replace("&nbsp;", "&#160;")
+        .replace("&copy;", "&#169;")
+        .replace("&mdash;", "&#8212;")
+        .replace("&ndash;", "&#8211;")
+        .replace("&ldquo;", "&#8220;")
+        .replace("&rdquo;", "&#8221;")
+        .replace("&lsquo;", "&#8216;")
+        .replace("&rsquo;", "&#8217;")
+        .replace("&hellip;", "&#8230;")
+}
+
 /// A utility for parsing XML content.
 ///
 /// This struct provides helper methods for common XML parsing operations

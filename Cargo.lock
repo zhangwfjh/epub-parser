@@ -207,7 +207,7 @@ dependencies = [
 
 [[package]]
 name = "epub-parser"
-version = "0.3.1"
+version = "0.3.2"
 dependencies = [
  "ordered_hash_map",
  "quick-xml",
